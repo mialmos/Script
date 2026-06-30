@@ -1,0 +1,171 @@
+-- Optimized Word Search (Your GitHub List) + Toggle Button + Always on Top
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local wordList = {}
+
+pcall(function()
+    local raw = game:HttpGet("https://raw.githubusercontent.com/mialmos/wordlist/refs/heads/main/words_list%20(1).txt")
+    wordList = string.split(raw, "\n")
+    print("✅ Loaded " .. #wordList .. " words from your list!")
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 999999  -- Always on top
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 240, 0, 320)  -- Smaller UI
+mainFrame.Position = UDim2.new(0.5, -120, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.Visible = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "Word Search"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -16, 0, 32)
+searchBox.Position = UDim2.new(0, 8, 0, 35)
+searchBox.PlaceholderText = "Type letters..."
+searchBox.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+searchBox.TextSize = 15
+searchBox.Font = Enum.Font.Gotham
+searchBox.Parent = mainFrame
+Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 8)
+
+local scrolling = Instance.new("ScrollingFrame")
+scrolling.Size = UDim2.new(1, -16, 1, -80)
+scrolling.Position = UDim2.new(0, 8, 0, 75)
+scrolling.BackgroundTransparency = 1
+scrolling.ScrollBarThickness = 5
+scrolling.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 3)
+listLayout.Parent = scrolling
+
+-- Toggle Button (Small draggable circle)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 45, 0, 45)
+toggleButton.Position = UDim2.new(0, 20, 0, 20)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+toggleButton.Text = "🔍"
+toggleButton.TextSize = 20
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = screenGui
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(1, 0)
+
+-- Dragging for toggle button
+local tbDragging = false
+local tbDragStart, tbStartPos
+
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tbDragging = true
+        tbDragStart = input.Position
+        tbStartPos = toggleButton.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if tbDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - tbDragStart
+        toggleButton.Position = UDim2.new(tbStartPos.X.Scale, tbStartPos.X.Offset + delta.X, tbStartPos.Y.Scale, tbStartPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        tbDragging = false
+    end
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Dragging for mainFrame
+local dragging = false
+local dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+local function updateList(text)
+    for _, child in pairs(scrolling:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    if #text < 1 then return end
+
+    local lowerText = text:lower()
+    local results = {}
+
+    for _, word in ipairs(wordList) do
+        if word:lower():sub(1, #lowerText) == lowerText then
+            table.insert(results, word)
+        end
+    end
+
+    table.sort(results, function(a, b)
+        return #a < #b
+    end)
+
+    for i = 1, math.min(70, #results) do
+        local word = results[i]
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        btn.Text = word
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextSize = 15
+        btn.Font = Enum.Font.Gotham
+        btn.Parent = scrolling
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+        btn.MouseButton1Click:Connect(function()
+            searchBox.Text = word
+        end)
+    end
+
+    scrolling.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 20)
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    updateList(searchBox.Text)
+end)
+
+print("✅ Word Search Loaded with your list!")
+print("Click the blue circle to show/hide the search panel")
